@@ -8,19 +8,28 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .ascii_renderer import ascii_preview, frame_to_ascii
+from .ascii_renderer import CHAR_ASPECT_RATIO, ascii_preview, frame_to_ascii
 from .camera import CameraError, CameraStream
+from .segmentation import ForegroundSegmenter, SegmentationConfig, SegmentationError
 
 
 def main() -> None:
     args = _parse_args()
+    segmenter = _build_segmenter(args)
     frame = _capture_frame()
 
     if args.save_frame:
         _save_frame(frame, args.save_frame)
 
-    ascii_rows = frame_to_ascii(frame, max_width=args.width, max_height=args.height)
-    print(ascii_preview(ascii_rows, colored=not args.no_color))
+    mask = segmenter.compute_mask(frame) if segmenter else None
+    render_height = max(1, int(args.height / CHAR_ASPECT_RATIO))
+    ascii_frame = frame_to_ascii(
+        frame,
+        max_width=args.width,
+        max_height=render_height,
+        foreground_mask=mask,
+    )
+    print(ascii_preview(ascii_frame, colored=not args.no_color))
 
     if args.stats:
         stats = _calc_stats(frame)
@@ -28,6 +37,11 @@ def main() -> None:
             f"\nFrame stats: shape={stats['shape']} min={stats['min']} max={stats['max']} "
             f"mean={stats['mean']:.2f} std={stats['std']:.2f}"
         )
+        if ascii_frame.mask is not None:
+            print(f"Foreground coverage: {ascii_frame.foreground_ratio * 100:.1f}%")
+
+    if segmenter:
+        segmenter.close()
 
 
 def _parse_args() -> argparse.Namespace:
@@ -48,6 +62,23 @@ def _parse_args() -> argparse.Namespace:
         "--no-color",
         action="store_true",
         help="Disable ANSI colors in the preview output",
+    )
+    parser.add_argument(
+        "--segment",
+        action="store_true",
+        help="Apply foreground masking before rendering",
+    )
+    parser.add_argument(
+        "--segment-backend",
+        choices=ForegroundSegmenter.available_backends(),
+        default="mog2",
+        help="Segmentation backend to use",
+    )
+    parser.add_argument(
+        "--segment-confidence",
+        type=float,
+        default=0.3,
+        help="Confidence threshold for ML-based segmentation",
     )
     return parser.parse_args()
 
@@ -80,3 +111,15 @@ def _calc_stats(frame: np.ndarray) -> dict[str, float | tuple[int, int]]:
 
 if __name__ == "__main__":
     main()
+
+def _build_segmenter(args: argparse.Namespace) -> ForegroundSegmenter | None:
+    if not args.segment:
+        return None
+    config = SegmentationConfig(
+        backend=args.segment_backend,
+        min_confidence=args.segment_confidence,
+    )
+    try:
+        return ForegroundSegmenter(config)
+    except SegmentationError as err:
+        raise SystemExit(f"Segmentation setup failed: {err}")

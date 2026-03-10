@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+ml = ["mediapipe>=0.10"]
 
 [project.scripts]
 ascii-cam = "ascii_cam.main:run"
