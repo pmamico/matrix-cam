@@ -14,9 +14,13 @@ ASCII camera viewer for macOS terminals. The application captures BGR frames fro
 
 ## Installation
 
-### Quick install
+### Homebrew
 
-Install directly from the repository (requires Python 3.11+):
+```shell
+brew install pmamico/keg/matrix-cam
+```
+
+### Pip
 
 ```bash
 pip install "git+https://github.com/pmamico/matrix-cam.git"
@@ -28,7 +32,7 @@ Use the optional `ml` extra to enable MediaPipe-based segmentation:
 pip install "git+https://github.com/pmamico/matrix-cam.git#egg=matrix-cam[ml]"
 ```
 
-### Local development
+## Local development
 
 ```bash
 git clone https://github.com/pmamico/matrix-cam.git
