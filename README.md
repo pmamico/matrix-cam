@@ -13,7 +13,17 @@ The application captures BGR frames from the webcam, maps each pixel to ASCII ch
 
 ## Installation
 
+
+### homebrew 
+```shell
+brew install pmamico/keg/matrix-cam
+```
+
+### from source
+
 ```bash
+git clone https://github.com/pmamico/homebrew-keg.git
+cd homebrew-keg
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
