@@ -17,13 +17,15 @@ MIN_WIDTH = 40
 MIN_HEIGHT = 12
 BRIGHTNESS_STEPS: tuple[int, ...] = (25, 50, 75, 100)
 
+SourceInput = int | str
+
 
 @dataclass
 class UIOptions:
     refresh_delay: float = 0.03  # Seconds between frames (~33 fps)
     start_segmentation: bool = True
     segmentation_backend: str = "mog2"
-    camera_sources: tuple[int, ...] = (0,)
+    camera_sources: tuple[SourceInput, ...] = (0,)
     start_source_index: int = 0
     start_glitch: bool = True
 
@@ -35,20 +37,21 @@ def _create_segmenter(backend: str) -> tuple[Optional[ForegroundSegmenter], Opti
         return None, f"Segmentation unavailable: {err}"
 
 
-def _open_camera_source(source_index: int) -> tuple[Optional[CameraStream], Optional[str]]:
-    camera = CameraStream(CameraConfig(index=source_index))
+def _open_camera_source(source: SourceInput) -> tuple[Optional[CameraStream], Optional[str]]:
+    camera = CameraStream(CameraConfig(source=source))
     try:
         camera.open()
     except CameraError as err:
-        return None, f"Failed to open camera source {source_index}: {err}"
+        descriptor = "video file" if isinstance(source, str) else "camera source"
+        return None, f"Failed to open {descriptor} {source}: {err}"
     return camera, None
 
 
 def _change_camera_source(
     current_camera: Optional[CameraStream],
-    source_index: int,
+    source: SourceInput,
 ) -> tuple[Optional[CameraStream], Optional[str]]:
-    new_camera, error = _open_camera_source(source_index)
+    new_camera, error = _open_camera_source(source)
     if error:
         return current_camera, error
     if current_camera:
@@ -84,7 +87,9 @@ def run_ui(stdscr: Any, options: Optional[UIOptions] = None) -> None:
             message = init_error
             segmentation_enabled = False
 
-    sources = list(opts.camera_sources) or [0]
+    sources: list[SourceInput] = list(opts.camera_sources)
+    if not sources:
+        sources = [0]
     source_index = min(max(opts.start_source_index, 0), len(sources) - 1)
     camera: Optional[CameraStream] = None
 
@@ -131,7 +136,7 @@ def run_ui(stdscr: Any, options: Optional[UIOptions] = None) -> None:
                     height,
                     backend,
                     BRIGHTNESS_STEPS[brightness_index],
-                    str(sources[source_index]),
+                    _format_source_label(sources[source_index]),
                     glitch_enabled,
                 )
                 stdscr.refresh()
@@ -152,7 +157,7 @@ def run_ui(stdscr: Any, options: Optional[UIOptions] = None) -> None:
                         backend,
                         None,
                         BRIGHTNESS_STEPS[brightness_index],
-                        str(sources[source_index]),
+                        _format_source_label(sources[source_index]),
                         glitch_enabled,
                     )
                     stdscr.refresh()
@@ -195,7 +200,7 @@ def run_ui(stdscr: Any, options: Optional[UIOptions] = None) -> None:
                 backend,
                 display_frame.foreground_ratio if display_frame else None,
                 BRIGHTNESS_STEPS[brightness_index],
-                str(sources[source_index]),
+                _format_source_label(sources[source_index]),
                 glitch_enabled,
             )
             stdscr.refresh()
@@ -256,6 +261,10 @@ def _draw_status_bar(
 def _status_hint() -> str:
     hints = ["q:quit", "f:mask", "b:bright", "g:glitch"]
     return " ".join(hints)
+
+
+def _format_source_label(source: SourceInput) -> str:
+    return source if isinstance(source, str) else str(source)
 
 
 def _draw_too_small(

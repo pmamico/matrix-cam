@@ -4,10 +4,12 @@
 
 ASCII camera viewer for macOS terminals. The application captures BGR frames from the webcam, maps each pixel to ASCII characters, and renders the result using bright green Matrix-style glyphs inside a curses UI.
 
+
+![.img/demo.gif](.img/demo.gif)
+
 ## Requirements
 
-- Python 3.11+
-- macOS terminal (Terminal.app or iTerm2)
+- macOS terminal
 - Camera permission granted to the terminal you run the app from
 
 ## Installation
@@ -50,6 +52,7 @@ CLI flags worth knowing:
 - `--no-mask`: start with segmentation disabled.
 - `--segment-backend {mog2,selfie}`: pick a segmenter (see below for extras).
 - `--source INDEX [INDEX ...]`: cycle between one or more camera indices.
+- `--video PATH`: play frames from a video file instead of a live camera (loops at EOF).
 
 ## Running the Prototype
 

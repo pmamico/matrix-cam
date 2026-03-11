@@ -17,12 +17,16 @@ class CameraError(RuntimeError):
 
 @dataclass
 class CameraConfig:
-    index: int = 0
+    source: int | str = 0
     width: Optional[int] = 640
     height: Optional[int] = 480
     fps: Optional[int] = 30
     warmup_frames: int = 10
     warmup_delay: float = 0.05
+
+    @property
+    def is_file_source(self) -> bool:
+        return isinstance(self.source, str)
 
 
 class CameraStream(AbstractContextManager["CameraStream"]):
@@ -40,17 +44,20 @@ class CameraStream(AbstractContextManager["CameraStream"]):
         self.close()
 
     def open(self) -> None:
-        capture = cv2.VideoCapture(self.config.index)
+        capture = cv2.VideoCapture(self.config.source)
 
         if not capture.isOpened():
+            if self.config.is_file_source:
+                raise CameraError("Unable to open video file. Verify the path and format.")
             raise CameraError("Unable to open camera. Ensure permissions are granted.")
 
-        if self.config.width:
-            capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
-        if self.config.height:
-            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
-        if self.config.fps:
-            capture.set(cv2.CAP_PROP_FPS, self.config.fps)
+        if not self.config.is_file_source:
+            if self.config.width:
+                capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
+            if self.config.height:
+                capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
+            if self.config.fps:
+                capture.set(cv2.CAP_PROP_FPS, self.config.fps)
 
         self._capture = capture
         self._warm_up()
@@ -65,13 +72,25 @@ class CameraStream(AbstractContextManager["CameraStream"]):
             raise CameraError("Camera is not opened. Call open() first.")
 
         success, frame = self._capture.read()
-        if not success or frame is None:
-            raise CameraError("Failed to read frame from camera.")
+        if success and frame is not None:
+            return frame
 
-        return frame
+        if self.config.is_file_source:
+            restarted = self._capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            if restarted:
+                success, frame = self._capture.read()
+                if success and frame is not None:
+                    return frame
+            raise CameraError("Failed to read frame from video file.")
+
+        raise CameraError("Failed to read frame from camera.")
 
     def _warm_up(self) -> None:
-        if not self._capture or self.config.warmup_frames <= 0:
+        if (
+            not self._capture
+            or self.config.warmup_frames <= 0
+            or self.config.is_file_source
+        ):
             return
 
         for _ in range(self.config.warmup_frames):
