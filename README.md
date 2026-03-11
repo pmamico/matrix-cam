@@ -41,7 +41,7 @@ pip install -e '.[ml]'
 ## Run
 
 ```bash
-matrix-cam --refresh-delay 0.05 --source 0 1 --no-mask --segment-backend selfie
+matrix-cam
 ```
 
 CLI flags worth knowing:
@@ -68,11 +68,6 @@ Useful flags:
 - `--segment-backend {mog2,selfie}`: pick the segmentation backend. `selfie` requires the optional ML extra described in the installation section.
 - `--segment-confidence`: control the mask confidence threshold used by ML backends (default 0.3).
 
-## Full-Screen UI
-
-```bash
-matrix-cam  # or: python -m matrix_cam.main
-```
 
 Run `matrix-cam --help` to list the available CLI options (refresh delay, segmentation backend, camera source, mask toggle). For example, `matrix-cam --source 1` starts the UI using camera index 1.
 
